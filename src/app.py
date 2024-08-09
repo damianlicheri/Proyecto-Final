@@ -4,14 +4,18 @@ import pandas as pd
 from retry_requests import retry
 from pickle import load
 import streamlit as st
+from datetime import date
+
+
 
 
 # Setup the Open-Meteo API client with cache and retry on error
 cache_session = requests_cache.CachedSession('.cache', expire_after = 3600)
 retry_session = retry(cache_session, retries = 5, backoff_factor = 0.2)
 openmeteo = openmeteo_requests.Client(session = retry_session)
-latitud= (23.133)
-longitud= (-82.383)
+latitud= st.number_input("Inserte la latitud")
+longitud= st.number_input("Inserte la longitud")
+fecha=date.today().isoformat()
 
 
 # Make sure all required weather variables are listed here
@@ -21,8 +25,8 @@ params = {
 	"latitude": latitud,
 	"longitude": longitud,
 	"hourly": ["temperature_2m","relative_humidity_2m", "dew_point_2m", "rain", "snowfall", "pressure_msl", "surface_pressure", "cloud_cover_low", "cloud_cover_mid", "cloud_cover_high", "vapour_pressure_deficit", "wind_gusts_10m", "soil_moisture_0_to_7cm"],
-	"start_date": "2024-08-08",
-	"end_date": "2024-08-08"
+	"start_date": fecha,
+	"end_date": fecha
 }
 responses = openmeteo.weather_api(url, params=params)
 response = responses[0]
@@ -83,6 +87,26 @@ df_period = hourly_dataframe.groupby(['date', 'period']).agg({"temperature_2m":'
 'wind_gusts_10m':'mean',
 'soil_moisture_0_to_7cm':'mean'})
 
+
+#Cargo modelo
 model = load(open("model.sav", "rb"))
-prediccion = model.predict(df_period)
-print(f'Predicción para mañana: {prediccion}')
+
+
+
+# creamos df y las columnas
+
+df = pd.DataFrame()
+df['Mañana'] = None
+df['Tarde'] = None
+df['Noche'] = None
+
+#Boton de prediccion
+
+if st.button("Predict"):
+    prediccion = model.predict(df_period)
+    #agrego a df la predicción
+    df.loc['Prediccion'] = prediccion
+    
+    st.write("Predicción de lluvia para mañana:", df)
+
+
