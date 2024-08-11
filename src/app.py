@@ -23,31 +23,34 @@ fecha=date.today().isoformat()
 # The order of variables in hourly or daily is important to assign them correctly below
 url = "https://api.open-meteo.com/v1/forecast"
 params = {
-	"latitude": latitud,
-	"longitude": longitud,
-	"hourly": ["temperature_2m","relative_humidity_2m", "dew_point_2m", "rain", "snowfall", "pressure_msl", "surface_pressure", "cloud_cover_low", "cloud_cover_mid", "cloud_cover_high", "vapour_pressure_deficit", "wind_gusts_10m", "soil_moisture_0_to_7cm"],
-	"start_date": fecha,
-	"end_date": fecha
+	"latitude": -48.4814,
+	"longitude": -72.5891,
+	"hourly": ["temperature_2m", "relative_humidity_2m", "dew_point_2m", "pressure_msl", "surface_pressure", "cloud_cover_low", "cloud_cover_mid", "cloud_cover_high", "vapour_pressure_deficit", "wind_gusts_10m", "soil_moisture_0_to_7cm"],
+	"start_date": "2024-08-11",
+	"end_date": "2024-08-11"
 }
 responses = openmeteo.weather_api(url, params=params)
-response = responses[0]
 
+# Process first location. Add a for-loop for multiple locations or weather models
+response = responses[0]
+print(f"Coordinates {response.Latitude()}°N {response.Longitude()}°E")
+print(f"Elevation {response.Elevation()} m asl")
+print(f"Timezone {response.Timezone()} {response.TimezoneAbbreviation()}")
+print(f"Timezone difference to GMT+0 {response.UtcOffsetSeconds()} s")
 
 # Process hourly data. The order of variables needs to be the same as requested.
 hourly = response.Hourly()
 hourly_temperature_2m = hourly.Variables(0).ValuesAsNumpy()
-hourly_relative_humidity_2m = hourly.Variables(0).ValuesAsNumpy()
-hourly_dew_point_2m = hourly.Variables(1).ValuesAsNumpy()
-hourly_rain = hourly.Variables(2).ValuesAsNumpy()
-hourly_snowfall = hourly.Variables(3).ValuesAsNumpy()
-hourly_pressure_msl = hourly.Variables(4).ValuesAsNumpy()
-hourly_surface_pressure = hourly.Variables(5).ValuesAsNumpy()
-hourly_cloud_cover_low = hourly.Variables(6).ValuesAsNumpy()
-hourly_cloud_cover_mid = hourly.Variables(7).ValuesAsNumpy()
-hourly_cloud_cover_high = hourly.Variables(8).ValuesAsNumpy()
-hourly_vapour_pressure_deficit = hourly.Variables(9).ValuesAsNumpy()
-hourly_wind_gusts_10m = hourly.Variables(10).ValuesAsNumpy()
-hourly_soil_moisture_0_to_1cm = hourly.Variables(11).ValuesAsNumpy()
+hourly_relative_humidity_2m = hourly.Variables(1).ValuesAsNumpy()
+hourly_dew_point_2m = hourly.Variables(2).ValuesAsNumpy()
+hourly_pressure_msl = hourly.Variables(3).ValuesAsNumpy()
+hourly_surface_pressure = hourly.Variables(4).ValuesAsNumpy()
+hourly_cloud_cover_low = hourly.Variables(5).ValuesAsNumpy()
+hourly_cloud_cover_mid = hourly.Variables(6).ValuesAsNumpy()
+hourly_cloud_cover_high = hourly.Variables(7).ValuesAsNumpy()
+hourly_vapour_pressure_deficit = hourly.Variables(8).ValuesAsNumpy()
+hourly_wind_gusts_10m = hourly.Variables(9).ValuesAsNumpy()
+hourly_soil_moisture_0_to_7cm = hourly.Variables(10).ValuesAsNumpy()
 
 hourly_data = {"date": pd.date_range(
 	start = pd.to_datetime(hourly.Time(), unit = "s", utc = True),
@@ -58,8 +61,6 @@ hourly_data = {"date": pd.date_range(
 hourly_data["temperature_2m"] = hourly_temperature_2m
 hourly_data["relative_humidity_2m"] = hourly_relative_humidity_2m
 hourly_data["dew_point_2m"] = hourly_dew_point_2m
-hourly_data["rain"] = hourly_rain
-hourly_data["snowfall"] = hourly_snowfall
 hourly_data["pressure_msl"] = hourly_pressure_msl
 hourly_data["surface_pressure"] = hourly_surface_pressure
 hourly_data["cloud_cover_low"] = hourly_cloud_cover_low
@@ -67,7 +68,7 @@ hourly_data["cloud_cover_mid"] = hourly_cloud_cover_mid
 hourly_data["cloud_cover_high"] = hourly_cloud_cover_high
 hourly_data["vapour_pressure_deficit"] = hourly_vapour_pressure_deficit
 hourly_data["wind_gusts_10m"] = hourly_wind_gusts_10m
-hourly_data["soil_moisture_0_to_7cm"] = hourly_soil_moisture_0_to_1cm
+hourly_data["soil_moisture_0_to_7cm"] = hourly_soil_moisture_0_to_7cm
 
 hourly_dataframe = pd.DataFrame(data = hourly_data)
 
@@ -77,8 +78,6 @@ hourly_dataframe["date"]= hourly_dataframe["date"].dt.date
 df_period = hourly_dataframe.groupby(['date', 'period']).agg({"temperature_2m":'mean',
 'relative_humidity_2m':'mean',
 'dew_point_2m':'mean',
-'rain':'mean',
-'snowfall':'mean',
 'pressure_msl':'mean',
 'surface_pressure':'mean',
 'cloud_cover_low':'mean',
@@ -90,7 +89,7 @@ df_period = hourly_dataframe.groupby(['date', 'period']).agg({"temperature_2m":'
 
 
 #Cargo modelo
-model = joblib.load("model.pkl", "rb")
+model = joblib.load('model.pkl')
 
 
 
