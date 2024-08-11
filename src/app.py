@@ -5,6 +5,7 @@ from retry_requests import retry
 from pickle import load
 import streamlit as st
 from datetime import date
+import joblib
 
 
 
@@ -89,7 +90,7 @@ df_period = hourly_dataframe.groupby(['date', 'period']).agg({"temperature_2m":'
 
 
 #Cargo modelo
-model = load(open("model.sav", "rb"))
+model = joblib.load("model.pkl", "rb")
 
 
 
