@@ -17,3 +17,5 @@ streamlit
 openmeteo-requests
 requests_cache
 retry_requests
+geopy
+geosky
