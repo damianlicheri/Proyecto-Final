@@ -113,9 +113,9 @@ hourly_data["soil_moisture_0_to_7cm"] = hourly_soil_moisture_0_to_7cm
 hourly_dataframe = pd.DataFrame(data = hourly_data)
 
 hourly_dataframe["hour"] = hourly_dataframe["date"].dt.hour
-hourly_dataframe["period"] = hourly_dataframe["hour"].apply(lambda x: 1 if x <= 8 else (2 if x <= 16 else 3))
-hourly_dataframe["date"]= hourly_dataframe["date"].dt.date
-df_period = hourly_dataframe.groupby(['date', 'period']).agg({"temperature_2m":'mean',
+hourly_dataframe["Periodo"] = hourly_dataframe["hour"].apply(lambda x: 1 if x <= 8 else (2 if x <= 16 else 3))
+hourly_dataframe["Fecha"]= hourly_dataframe["date"].dt.date
+df_period = hourly_dataframe.groupby(['Fecha', 'Periodo']).agg({"temperature_2m":'mean',
 'relative_humidity_2m':'mean',
 'dew_point_2m':'mean',
 'pressure_msl':'mean',
@@ -127,7 +127,12 @@ df_period = hourly_dataframe.groupby(['date', 'period']).agg({"temperature_2m":'
 'wind_gusts_10m':'mean',
 'soil_moisture_0_to_7cm':'mean'})
 
+
+df_period.index = df_period.index.set_levels(df_period.index.levels[1].map({1:'Manana', 2:'Tarde', 3:'Noche'}), level=1)
+
 df_datos= pd.DataFrame(df_period, columns=['temperature_2m', 'relative_humidity_2m','wind_gusts_10m'])
+df_datos.columns = ['Temperatura (°C)', 'Humedad relativa (%)','Rafagas del viento(km/h)']
+
 
 #Cargo modelo
 model = joblib.load('model.pkl')
