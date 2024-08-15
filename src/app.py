@@ -6,28 +6,68 @@ from pickle import load
 import streamlit as st
 from datetime import date
 import joblib
+from geopy.geocoders import Nominatim
+from geosky import geo_plug
+import requests
+import json
+import numpy as np
+
+# Set the background image
+background_image = """
+<style>
+[data-testid="stAppViewContainer"] > .main {
+    background-image: url("https://open-meteo.com/images/partly_cloudy.webp");
+    background-size: 100vw 100vh;  # This sets the size to cover 100% of the viewport width and height
+    background-position: center;  
+    background-repeat: no-repeat;
+}
+</style>
+"""
+
+st.markdown(background_image, unsafe_allow_html=True)
+
+
+list_cities_clean = []
+list_cities_orig = geo_plug.all_Country_StateNames()
+lista_diccionarios = json.loads(list_cities_orig)
+all_keys = [key for dic in lista_diccionarios for key in dic.keys()]
+
+for i in all_keys:
+    var_index = int(all_keys.index(""+ i + ""))
+    for x in lista_diccionarios[var_index].values():
+        list_cities_ = list(x)
+        list_cities_clean.extend(list(x))
 
 
 
+list_cities_clean = [x for x in list_cities_clean if str(x) != 'N/A']
 
 # Setup the Open-Meteo API client with cache and retry on error
 cache_session = requests_cache.CachedSession('.cache', expire_after = 3600)
 retry_session = retry(cache_session, retries = 5, backoff_factor = 0.2)
 openmeteo = openmeteo_requests.Client(session = retry_session)
-latitud= st.number_input("Inserte la latitud")
-longitud= st.number_input("Inserte la longitud")
+#latitud= st.number_input("Inserte la latitud")
+#longitud= st.number_input("Inserte la longitud")
 fecha=date.today().isoformat()
+
+ciudad = st.selectbox(
+    "Seleccione una ciudad",
+    (list_cities_clean),
+)
+# Initialize Nominatim API
+geolocator = Nominatim(user_agent="App_Tesis")
+location = geolocator.geocode(ciudad)
+
 
 
 # Make sure all required weather variables are listed here
 # The order of variables in hourly or daily is important to assign them correctly below
 url = "https://api.open-meteo.com/v1/forecast"
 params = {
-	"latitude": -48.4814,
-	"longitude": -72.5891,
+	"latitude": location.latitude,
+	"longitude": location.longitude,
 	"hourly": ["temperature_2m", "relative_humidity_2m", "dew_point_2m", "pressure_msl", "surface_pressure", "cloud_cover_low", "cloud_cover_mid", "cloud_cover_high", "vapour_pressure_deficit", "wind_gusts_10m", "soil_moisture_0_to_7cm"],
-	"start_date": "2024-08-11",
-	"end_date": "2024-08-11"
+	"forecast_days": 3
 }
 responses = openmeteo.weather_api(url, params=params)
 
@@ -87,6 +127,7 @@ df_period = hourly_dataframe.groupby(['date', 'period']).agg({"temperature_2m":'
 'wind_gusts_10m':'mean',
 'soil_moisture_0_to_7cm':'mean'})
 
+df_datos= pd.DataFrame(df_period, columns=['temperature_2m', 'relative_humidity_2m','wind_gusts_10m'])
 
 #Cargo modelo
 model = joblib.load('model.pkl')
@@ -95,18 +136,28 @@ model = joblib.load('model.pkl')
 
 # creamos df y las columnas
 
-df = pd.DataFrame()
-df['Mañana'] = None
-df['Tarde'] = None
-df['Noche'] = None
+fechas= df_period.index.get_level_values(0)
+fechas = fechas.unique()
+# Convertir la lista en un array de NumPy para facilitar el redimensionamiento
+
+
 
 #Boton de prediccion
 
 if st.button("Predict"):
     prediccion = model.predict(df_period)
-    #agrego a df la predicción
-    df.loc['Prediccion'] = prediccion
+    array_prediccion = np.array(prediccion)
+
+# Redimensionar el array en una matriz con 3 columnas
+    array_prediccion_reshaped = array_prediccion.reshape(-1, 3)
+
+# Crear un DataFrame a partir de la matriz
+    df = pd.DataFrame(array_prediccion_reshaped, columns=['Mañana', 'Tarde', 'Noche'], index=fechas)
     
-    st.write("Predicción de lluvia para mañana:", df)
+    st.write("Predicción de lluvia para mañana(mm):", df)
+    st.write("Datos adicionales de la predicción:", df_datos)
+
+
+
 
 
